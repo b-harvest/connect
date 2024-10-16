@@ -5,6 +5,12 @@ import (
 	"time"
 )
 
+// EthereumRPCConfig holds configuration for Ethereum RPC
+type EthereumRPCConfig struct {
+	Endpoints []string `json:"endpoints"` // List of RPC endpoints (primary and backup)
+	Timeout   int      `json:"timeout"`   // Timeout for the RPC requests in seconds
+}
+
 // APIConfig defines a config for an API based data provider.
 type APIConfig struct {
 	// Enabled indicates if the provider is enabled.

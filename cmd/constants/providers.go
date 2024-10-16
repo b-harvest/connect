@@ -200,4 +200,8 @@ var (
 		dydx.ResearchCMCAPIHandlerName: {},
 		marketmap.Name:                 {},
 	}
+
+	ContractEventTypeProviderNames = map[string]struct{}{
+		contractevent.Name: {},
+	}
 )

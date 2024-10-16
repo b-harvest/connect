@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-
 	//nolint: gosec
 	_ "net/http/pprof"
 	"os"
@@ -15,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/skip-mev/connect/v2/oracle/types"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -66,23 +66,24 @@ var (
 	flagValidationPeriod         = "validation-period"
 
 	// flag-bound values.
-	oracleCfgPath       string
-	marketCfgPath       string
-	marketMapProvider   string
-	updateMarketCfgPath string
-	runPprof            bool
-	profilePort         string
-	logLevel            string
-	fileLogLevel        string
-	writeLogsTo         string
-	marketMapEndPoint   string
-	maxLogSize          int
-	maxBackups          int
-	maxAge              int
-	disableCompressLogs bool
-	disableRotatingLogs bool
-	mode                string
-	validationPeriod    time.Duration
+	oracleCfgPath        string
+	marketCfgPath        string
+	eventProviderCfgPath string
+	marketMapProvider    string
+	updateMarketCfgPath  string
+	runPprof             bool
+	profilePort          string
+	logLevel             string
+	fileLogLevel         string
+	writeLogsTo          string
+	marketMapEndPoint    string
+	maxLogSize           int
+	maxBackups           int
+	maxAge               int
+	disableCompressLogs  bool
+	disableRotatingLogs  bool
+	mode                 string
+	validationPeriod     time.Duration
 )
 
 const (
@@ -124,6 +125,13 @@ func init() {
 		"",
 		"",
 		"Path where the current market config will be written. Overwrites any pre-existing file. Requires an http-node-url/marketmap provider in your oracle.json config.",
+	)
+	rootCmd.Flags().StringVarP(
+		&eventProviderCfgPath,
+		"event-provider-config-path",
+		"",
+		"",
+		"Path to the contract event config file.",
 	)
 	rootCmd.Flags().BoolVarP(
 		&runPprof,
@@ -334,6 +342,14 @@ func runOracle() error {
 		}
 	}
 
+	var eventProviderCfg types.EventProvider
+	if eventProviderCfgPath != "" {
+		eventProviderCfg, err = types.ReadEventProviderFromFile(eventProviderCfgPath)
+		if err != nil {
+			return fmt.Errorf("failed to read contract event config file: %w", err)
+		}
+	}
+
 	logger.Info(
 		"successfully read in configs",
 		zap.String("oracle_config_path", oracleCfgPath),
@@ -371,6 +387,10 @@ func runOracle() error {
 	}
 	if updateMarketCfgPath != "" {
 		oracleOpts = append(oracleOpts, oracle.WithWriteTo(updateMarketCfgPath))
+	}
+
+	if eventProviderCfgPath != "" {
+		oracleOpts = append(oracleOpts, oracle.WithEventProvider(eventProviderCfg))
 	}
 
 	// Create the oracle and start the oracle.

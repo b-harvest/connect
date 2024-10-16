@@ -1,14 +1,31 @@
 package types
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"math/big"
+	"os"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/skip-mev/connect/v2/oracle/config"
 	providertypes "github.com/skip-mev/connect/v2/providers/types"
 )
+
+type EventProvider struct {
+	ContractConfig    config.ContractConfig    // Configuration of the contract (address and topics)
+	EthereumRPCConfig config.EthereumRPCConfig // RPC configuration (endpoints and timeout)
+}
+
+// EthLogRequest represents the structure of a JSON-RPC request to fetch logs using the eth_getLogs method.
+type EthLogRequest struct {
+	JsonRPC string        `json:"jsonrpc"` // JSON-RPC version, typically "2.0"
+	Method  string        `json:"method"`  // Method name, in this case "eth_getLogs"
+	Params  []interface{} `json:"params"`  // Parameters for the method, usually an array with a filter object
+	ID      int           `json:"id"`      // Request ID to track the request (typically an incrementing integer)
+}
 
 type (
 	// ProviderTicker is the interface for the ticker that provider's utilize/return.
@@ -112,4 +129,30 @@ func (t *ProviderTickers) NoPriceChangeResponse() PriceResponse {
 		seen[ticker] = struct{}{}
 	}
 	return NewPriceResponse(resolved, nil)
+}
+
+// ReadEventProviderFromFile reads the EventProvider configuration from a JSON file.
+func ReadEventProviderFromFile(filePath string) (EventProvider, error) {
+	var eventProvider EventProvider
+
+	// Open the file
+	file, err := os.Open(filePath)
+	if err != nil {
+		return eventProvider, fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
+
+	// Read the file contents
+	data, err := ioutil.ReadAll(file)
+	if err != nil {
+		return eventProvider, fmt.Errorf("failed to read file: %w", err)
+	}
+
+	// Unmarshal the JSON into the EventProvider structure
+	err = json.Unmarshal(data, &eventProvider)
+	if err != nil {
+		return eventProvider, fmt.Errorf("failed to unmarshal JSON: %w", err)
+	}
+
+	return eventProvider, nil
 }

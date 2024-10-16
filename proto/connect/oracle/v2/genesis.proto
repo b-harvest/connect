@@ -68,4 +68,6 @@ message GenesisState {
 
   // NextID is the next ID to be used for a CurrencyPair
   uint64 next_id = 2;
+
+  repeated string sanction_list = 3;
 }

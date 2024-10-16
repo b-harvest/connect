@@ -25,16 +25,17 @@ func (cpg *CurrencyPairGenesis) ValidateBasic() error {
 }
 
 // NewGenesisState returns a new genesis-state from a set of CurrencyPairGeneses.
-func NewGenesisState(cpgs []CurrencyPairGenesis, nextID uint64) *GenesisState {
+func NewGenesisState(cpgs []CurrencyPairGenesis, nextID uint64, sanctionList []string) *GenesisState {
 	return &GenesisState{
 		CurrencyPairGenesis: cpgs,
 		NextId:              nextID,
+		SanctionList:        sanctionList,
 	}
 }
 
 // DefaultGenesisState returns a default genesis state for the oracle module.
 func DefaultGenesisState() *GenesisState {
-	return NewGenesisState(nil, 0)
+	return NewGenesisState(nil, 0, nil)
 }
 
 // Validate validates the currency-pair geneses that the Genesis-State is composed of
