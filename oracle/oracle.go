@@ -43,6 +43,11 @@ type OracleImpl struct { //nolint:revive
 	// mmProvider is the market map provider. Specifically this provider is responsible
 	// for making requests for the latest market map data.
 	mmProvider *mmclienttypes.MarketMapProvider
+
+	eventProvider       types.EventProvider
+	lastEventSyncHeight uint64
+	eventHandler        types.EventHandler
+
 	// aggregator is the price aggregator.
 	aggregator PriceAggregator
 	// lastPriceSync is the last time the oracle successfully updated its prices.

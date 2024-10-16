@@ -3,7 +3,9 @@ package currencypair
 import (
 	"fmt"
 	"math/big"
+	"os"
 
+	"cosmossdk.io/log"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	connecttypes "github.com/skip-mev/connect/v2/pkg/types"
@@ -22,6 +24,7 @@ type DefaultCurrencyPairStrategy struct {
 	oracleKeeper   OracleKeeper
 	idCache        map[uint64]connecttypes.CurrencyPair
 	previousHeight int64
+	logger         log.Logger
 }
 
 // NewDefaultCurrencyPairStrategy returns a new DefaultCurrencyPairStrategy instance.
@@ -29,6 +32,7 @@ func NewDefaultCurrencyPairStrategy(oracleKeeper OracleKeeper) *DefaultCurrencyP
 	strategy := &DefaultCurrencyPairStrategy{
 		oracleKeeper: oracleKeeper,
 		idCache:      make(map[uint64]connecttypes.CurrencyPair, DefaultCacheInitialCapacity),
+		logger:       log.NewLogger(os.Stdout),
 	}
 	return strategy
 }

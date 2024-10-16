@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/mitchellh/mapstructure"
+	"github.com/skip-mev/connect/v2/oracle/types"
 	"github.com/spf13/viper"
 
 	"github.com/skip-mev/connect/v2/cmd/constants"
@@ -36,6 +37,12 @@ const (
 	ConnectConfigEnvironmentPrefix = "CONNECT_CONFIG"
 	// TelemetryPushAddress is the value for the publication endpoint.
 	TelemetryPushAddress = "connect-statsd-data.dev.skip.money:9125"
+	// DefaultContractAddress is the default contract address for the connect oracle.
+	DefaultContractAddress   = "0x40c57923924b5c5c5455c48d93317139addac8fb"
+	DefaultTopics            = "0x2596d7dd6966c5673f9c06ddb0564c4f0e6d8d206ea075b83ad9ddd71a4fb927"
+	DefaultEthereumRPC       = "https://rpc.ankr.com/eth"
+	DefaultBackupEthereumRPC = "https://eth.public-rpc.com"
+	DefaultRPCTimeout        = 10
 )
 
 // DefaultOracleConfig returns the default configuration for the connect oracle.
@@ -54,6 +61,16 @@ func DefaultOracleConfig() config.OracleConfig {
 		Providers: make(map[string]config.ProviderConfig),
 		Host:      DefaultHost,
 		Port:      DefaultPort,
+		EventProvider: types.EventProvider{
+			ContractConfig: config.ContractConfig{
+				Address: DefaultContractAddress,
+				Topics:  []string{DefaultTopics},
+			},
+			EthereumRPCConfig: config.EthereumRPCConfig{
+				Endpoints: []string{DefaultEthereumRPC, DefaultBackupEthereumRPC},
+				Timeout:   DefaultRPCTimeout,
+			},
+		},
 	}
 
 	for _, provider := range append(constants.Providers, constants.AlternativeMarketMapProviders...) {

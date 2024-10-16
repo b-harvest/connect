@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/skip-mev/connect/v2/oracle/types"
 	"github.com/spf13/viper"
 )
 
@@ -31,6 +32,8 @@ type OracleConfig struct {
 
 	// Port is the port that the oracle will listen on.
 	Port string `json:"port"`
+
+	EventProvider types.EventProvider `json:"eventProvider"`
 }
 
 // ValidateBasic performs basic validation on the oracle config.

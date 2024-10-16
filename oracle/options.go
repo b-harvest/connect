@@ -93,3 +93,10 @@ func WithMetrics(met oraclemetrics.Metrics) Option {
 		m.metrics = met
 	}
 }
+
+// WithEventProvider adds an EventProvider to the Oracle configuration.
+func WithEventProvider(eventProvider types.EventProvider) Option {
+	return func(o *OracleImpl) {
+		o.eventProvider = eventProvider
+	}
+}
