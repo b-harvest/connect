@@ -25,6 +25,9 @@ service Msg {
   // CurrencyPairs will no longer have price-data available from this module.
   rpc RemoveCurrencyPairs(MsgRemoveCurrencyPairs)
       returns (MsgRemoveCurrencyPairsResponse);
+
+  rpc AddToSanctionList(MsgAddToSanctionList)
+      returns (MsgAddToSanctionListResponse);
 }
 
 // Given an authority + a set of CurrencyPairs, the x/oracle module will
@@ -69,3 +72,17 @@ message MsgRemoveCurrencyPairs {
 }
 
 message MsgRemoveCurrencyPairsResponse {}
+
+message MsgAddToSanctionList {
+  option (gogoproto.equal) = false;
+  option (gogoproto.goproto_getters) = false;
+
+  option (cosmos.msg.v1.signer) = "signer";
+  // set of CurrencyPairs to be added to the module (+ prices if they are to be
+  // set)
+  string signer = 1;
+
+  SanctionItem sanction_item = 2;
+}
+
+message MsgAddToSanctionListResponse {}

@@ -80,7 +80,7 @@ func (s *KeeperTestSuite) TestGetPrice() {
 	}
 
 	// init genesis
-	s.oracleKeeper.InitGenesis(s.ctx, *types.NewGenesisState(cpg, 3))
+	s.oracleKeeper.InitGenesis(s.ctx, *types.NewGenesisState(cpg, 3, nil))
 
 	tcs := []struct {
 		name       string

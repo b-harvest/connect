@@ -15,6 +15,24 @@ type queryServer struct {
 	k Keeper
 }
 
+func (q queryServer) GetSanctionList(ctx context.Context, request *types.GetSanctionListRequest) (*types.GetSanctionListResponse, error) {
+	// Convert gRPC context to sdk.Context
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+
+	// Get all the sanction list items from the keeper
+	sanctionList, err := q.k.GetSanctionList(sdkCtx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Construct the response with the retrieved sanction list
+	response := &types.GetSanctionListResponse{
+		SanctionList: sanctionList,
+	}
+
+	return response, nil
+}
+
 // NewQueryServer returns an implementation of the x/oracle QueryServer.
 func NewQueryServer(k Keeper) types.QueryServer {
 	return queryServer{

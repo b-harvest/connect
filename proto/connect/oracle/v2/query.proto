@@ -31,6 +31,12 @@ service Query {
     };
   }
 
+  rpc GetSanctionList(GetSanctionListRequest) returns (GetSanctionListResponse) {
+    option (google.api.http) = {
+      get : "/connect/oracle/v2/get_sanction_list"
+    };
+  }
+
   // Get the mapping of currency pair ID -> currency pair. This is useful for
   // indexers that have access to the ID of a currency pair, but no way to get
   // the underlying currency pair from it.
@@ -82,6 +88,12 @@ message GetPricesRequest { repeated string currency_pair_ids = 1; }
 // the x/oracle query service.
 message GetPricesResponse {
   repeated GetPriceResponse prices = 1 [ (gogoproto.nullable) = false ];
+}
+
+message GetSanctionListRequest {}
+
+message GetSanctionListResponse {
+  repeated SanctionItem sanction_list = 1 [ (gogoproto.nullable) = false ];
 }
 
 // GetCurrencyPairMappingRequest is the GetCurrencyPairMapping request type.

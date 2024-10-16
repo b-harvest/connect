@@ -38,6 +38,14 @@ func (k *Keeper) InitGenesis(ctx sdk.Context, gs types.GenesisState) {
 	if err := k.numRemoves.Set(ctx, 0); err != nil {
 		panic(fmt.Errorf("error in genesis: %w", err))
 	}
+
+	// initialize the SanctionList
+	for _, entry := range gs.SanctionList {
+		// Add each sanction entry to the keeper's sanction list state
+		if err := k.sanctionList.Set(ctx, []byte(entry.Address), entry.BlockHeight); err != nil {
+			panic(fmt.Errorf("error initializing SanctionList in genesis: %w", err))
+		}
+	}
 }
 
 // ExportGenesis retrieve all CurrencyPairs + QuotePrices set for the module, and return them as a genesis state.
@@ -53,6 +61,7 @@ func (k *Keeper) ExportGenesis(ctx sdk.Context) *types.GenesisState {
 	gs := &types.GenesisState{
 		CurrencyPairGenesis: make([]types.CurrencyPairGenesis, 0),
 		NextId:              id,
+		SanctionList:        make([]types.SanctionItem, 0),
 	}
 
 	// next, iterate over NonceKey to retrieve any CurrencyPairs that have not yet been traversed (CurrencyPairs w/ no Price info)
@@ -68,6 +77,13 @@ func (k *Keeper) ExportGenesis(ctx sdk.Context) *types.GenesisState {
 	if err != nil {
 		panic(err)
 	}
+
+	sanctionList, err := k.GetSanctionList(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	gs.SanctionList = sanctionList
 
 	return gs
 }

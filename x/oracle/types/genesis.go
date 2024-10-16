@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/codec"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // ValidateBasic validates that the CurrencyPair is valid, and performs any necessary validation on the
@@ -25,16 +26,17 @@ func (cpg *CurrencyPairGenesis) ValidateBasic() error {
 }
 
 // NewGenesisState returns a new genesis-state from a set of CurrencyPairGeneses.
-func NewGenesisState(cpgs []CurrencyPairGenesis, nextID uint64) *GenesisState {
+func NewGenesisState(cpgs []CurrencyPairGenesis, nextID uint64, sanctionList []SanctionItem) *GenesisState {
 	return &GenesisState{
 		CurrencyPairGenesis: cpgs,
 		NextId:              nextID,
+		SanctionList:        sanctionList,
 	}
 }
 
 // DefaultGenesisState returns a default genesis state for the oracle module.
 func DefaultGenesisState() *GenesisState {
-	return NewGenesisState(nil, 0)
+	return NewGenesisState(nil, 0, nil)
 }
 
 // Validate validates the currency-pair geneses that the Genesis-State is composed of
@@ -68,6 +70,16 @@ func (gs *GenesisState) Validate() error {
 
 		// add the currency-pair to the set of currency-pairs
 		cps[cpg.CurrencyPair.String()] = struct{}{}
+	}
+
+	for _, entry := range gs.SanctionList {
+		if common.IsHexAddress(entry.Address) == false {
+			return fmt.Errorf("sanction list contains an invalid address: %s", entry.Address)
+		}
+
+		if entry.BlockHeight < 0 {
+			return fmt.Errorf("sanction list entry for address %s has an invalid height: %d", entry.Address, entry.BlockHeight)
+		}
 	}
 
 	return nil
