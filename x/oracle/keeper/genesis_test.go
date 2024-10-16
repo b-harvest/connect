@@ -256,3 +256,67 @@ func (s *KeeperTestSuite) TestExportGenesis() {
 		}
 	})
 }
+
+func TestGenesisSanctionList(t *testing.T) {
+	// Create test cases for different scenarios
+	testCases := []struct {
+		name         string
+		sanctionList []types.SanctionItem
+		expectedPass bool
+	}{
+		{
+			name: "valid sanction list",
+			sanctionList: []types.SanctionItem{
+				{
+					Address:     "0x0931ca4d13bb4ba75d9b7132ab690265d749a5e7",
+					BlockHeight: 100,
+				},
+				{
+					Address:     "0x123456789abcdef123456789abcdef123456789a",
+					BlockHeight: 200,
+				},
+			},
+			expectedPass: true,
+		},
+		{
+			name: "invalid address in sanction list",
+			sanctionList: []types.SanctionItem{
+				{
+					Address:     "invalid_address",
+					BlockHeight: 100,
+				},
+			},
+			expectedPass: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create a GenesisState with SanctionList
+			gs := types.GenesisState{
+				CurrencyPairGenesis: []types.CurrencyPairGenesis{
+					{
+						CurrencyPair: connecttypes.CurrencyPair{
+							Base:  "AA",
+							Quote: "BB",
+						},
+						Id:    0,
+						Nonce: 0,
+					},
+				},
+				NextId:       1,
+				SanctionList: tc.sanctionList,
+			}
+
+			// Validate the genesis state
+			err := gs.Validate()
+
+			// Assert validation results
+			if tc.expectedPass {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+			}
+		})
+	}
+}

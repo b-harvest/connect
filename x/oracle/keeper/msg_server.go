@@ -92,3 +92,22 @@ func (m *msgServer) RemoveCurrencyPairs(goCtx context.Context, req *types.MsgRem
 
 	return nil, nil
 }
+
+// AddToSanctionList adds an address to the sanction list with a specified block height.
+func (m *msgServer) AddToSanctionList(goCtx context.Context, req *types.MsgAddToSanctionList) (*types.MsgAddToSanctionListResponse, error) {
+	// Check if the request is nil
+	if req == nil {
+		return nil, fmt.Errorf("message cannot be empty")
+	}
+
+	// Unwrap SDK context
+	ctx := sdk.UnwrapSDKContext(goCtx)
+
+	// Add the address to the sanction list using the keeper
+	err := m.k.AddAddressToSanctionList(ctx, []byte(req.SanctionItem.Address), req.SanctionItem.BlockHeight)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add to sanction list: %w", err)
+	}
+
+	return &types.MsgAddToSanctionListResponse{}, nil
+}

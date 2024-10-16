@@ -69,6 +69,9 @@ type Keeper struct {
 
 	// module authority
 	authority sdk.AccAddress
+
+	sanctionList collections.Map[[]byte, uint64] // Key: []byte (address), Value: uint64 (height)
+
 }
 
 // NewKeeper constructs a new keeper from a store-key + authority account address.
@@ -98,6 +101,11 @@ func NewKeeper(
 		nextCurrencyPairID: collections.NewSequence(sb, types.CurrencyPairIDKeyPrefix, "currency_pair_id"),
 		currencyPairs:      collections.NewIndexedMap(sb, types.CurrencyPairKeyPrefix, "currency_pair", collections.StringKey, codec.CollValue[types.CurrencyPairState](cdc), indices),
 		idIndex:            idMulti,
+		sanctionList: collections.NewMap(
+			sb, types.SanctionListKeyPrefix,
+			"sanction_list",
+			collections.BytesKey, collections.Uint64Value,
+		),
 	}
 
 	// create the schema
@@ -391,4 +399,35 @@ func (k *Keeper) decrementCPCounter(ctx sdk.Context) error {
 // GetNumCurrencyPairs returns the number of currency pairs currently in state.
 func (k *Keeper) GetNumCurrencyPairs(ctx sdk.Context) (uint64, error) {
 	return k.numCPs.Get(ctx)
+}
+
+// AddAddressToSanctionList adds an address to the sanction list with a height.
+func (k *Keeper) AddAddressToSanctionList(ctx sdk.Context, address []byte, height uint64) error {
+	return k.sanctionList.Set(ctx, address, height)
+}
+
+// RemoveAddressFromSanctionList removes an address from the sanction list.
+func (k *Keeper) RemoveAddressFromSanctionList(ctx sdk.Context, address []byte) error {
+	return k.sanctionList.Remove(ctx, address)
+}
+
+// GetSanctionList retrieves all the sanction items (address and block_height) from the sanction list.
+func (k *Keeper) GetSanctionList(ctx sdk.Context) ([]types.SanctionItem, error) {
+	var sanctionList []types.SanctionItem
+
+	// Use Walk to iterate over the sanctionList map
+	err := k.sanctionList.Walk(ctx, nil, func(address []byte, height uint64) (stop bool, err error) {
+		// Append each entry to the sanctionList slice as a SanctionItem
+		sanctionList = append(sanctionList, types.SanctionItem{
+			Address:     string(address), // Convert address from []byte to string
+			BlockHeight: height,          // BlockHeight is uint64
+		})
+		return false, nil // Continue iteration
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return sanctionList, nil
 }
