@@ -57,7 +57,6 @@ message CurrencyPairGenesis {
   uint64 id = 4;
 }
 
-
 message SanctionItem {
   string address = 1;
   uint64 block_height = 2;

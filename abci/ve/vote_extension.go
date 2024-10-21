@@ -57,6 +57,7 @@ func NewVoteExtensionHandler(
 	strategy currencypair.CurrencyPairStrategy,
 	codec compression.VoteExtensionCodec,
 	priceApplier aggregator.PriceApplier,
+	sanctionListApplier aggregator.SanctionListApplier,
 	metrics servicemetrics.Metrics,
 ) *VoteExtensionHandler {
 	return &VoteExtensionHandler{
@@ -67,6 +68,7 @@ func NewVoteExtensionHandler(
 		voteExtensionCodec:   codec,
 		metrics:              metrics,
 		priceApplier:         priceApplier,
+		sanctionListApplier:  sanctionListApplier,
 	}
 }
 
@@ -131,6 +133,17 @@ func (h *VoteExtensionHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 			return &cometabci.ResponseExtendVote{VoteExtension: []byte{}}, err
 		}
 
+		if _, err = h.sanctionListApplier.ApplySanctionListsFromVoteExtensions(ctx, reqFinalizeBlock); err != nil {
+			h.logger.Error(
+				"failed to aggregate contract events",
+				"height", req.Height,
+				"err", err,
+			)
+			err = PreBlockError{err}
+
+			return &cometabci.ResponseExtendVote{VoteExtension: []byte{}}, err
+		}
+
 		// Create a context with a timeout to ensure we do not wait forever for the oracle
 		// to respond.
 		reqCtx, cancel := context.WithTimeout(ctx.Context(), h.timeout)
@@ -138,7 +151,7 @@ func (h *VoteExtensionHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 
 		// To ensure liveness, we return a vote even if the oracle is not running
 		// or if the oracle returns a bad response.
-		oracleResp, err := h.oracleClient.Prices(ctx.WithContext(reqCtx), &servicetypes.QueryPricesRequest{})
+		oraclePriceResp, err := h.oracleClient.Prices(ctx.WithContext(reqCtx), &servicetypes.QueryPricesRequest{})
 		if err != nil {
 			h.logger.Error(
 				"failed to retrieve oracle prices for vote extension; returning empty vote extension",
@@ -154,20 +167,36 @@ func (h *VoteExtensionHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 			return &cometabci.ResponseExtendVote{VoteExtension: []byte{}}, err
 		}
 
-		// If we get no response, we return an empty vote extension.
-		if oracleResp == nil {
+		oracleSanctionListResp, err := h.oracleClient.SanctionLists(ctx.WithContext(reqCtx), &servicetypes.QuerySanctionListsRequest{})
+		if err != nil {
 			h.logger.Error(
-				"oracle returned nil prices for vote extension; returning empty vote extension",
+				"failed to retrieve oracle contract events for vote extension; returning empty vote extension",
+				"height", req.Height,
+				"ctx_err", reqCtx.Err(),
+				"err", err,
+			)
+
+			err = OracleClientError{
+				Err: err,
+			}
+
+			return &cometabci.ResponseExtendVote{VoteExtension: []byte{}}, err
+		}
+
+		// If we get no response, we return an empty vote extension.
+		if oraclePriceResp == nil || oraclePriceResp.Prices == nil {
+			h.logger.Error(
+				"oracle returned nil for vote extension; returning empty vote extension",
 				"height", req.Height,
 			)
 
-			err = OracleClientError{fmt.Errorf("oracle returned nil prices")}
+			err = OracleClientError{fmt.Errorf("oracle returned nil value")}
 
 			return &cometabci.ResponseExtendVote{VoteExtension: []byte{}}, err
 		}
 
 		// Transform the response prices into a vote extension.
-		voteExt, err := h.transformOracleServicePrices(ctx, oracleResp.Prices)
+		voteExt, err := h.transformOracleServiceData(ctx, oraclePriceResp.Prices, oracleSanctionListResp.SanctionList)
 		if err != nil {
 			h.logger.Error(
 				"failed to transform oracle prices for vote extension; returning empty vote extension",
@@ -287,7 +316,7 @@ func (h *VoteExtensionHandler) VerifyVoteExtensionHandler() sdk.VerifyVoteExtens
 // transformOracleServicePrices transforms the oracle service prices into a vote extension. It
 // does this by iterating over the prices submitted by the oracle service and determining the
 // correct decoded price / ID based on the currency pair strategy.
-func (h *VoteExtensionHandler) transformOracleServicePrices(ctx sdk.Context, prices map[string]string) (types.OracleVoteExtension, error) {
+func (h *VoteExtensionHandler) transformOracleServiceData(ctx sdk.Context, prices map[string]string, sanctionList []types.SanctionItem) (types.OracleVoteExtension, error) {
 	strategyPrices := make(map[uint64][]byte)
 
 	// Iterate over the prices and transform them into the correct format.

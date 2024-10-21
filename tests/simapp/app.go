@@ -374,10 +374,11 @@ func NewSimApp(
 		time.Second,
 		cps,
 		veCodec,
-		aggregator.NewOraclePriceApplier(
+		aggregator.NewOracleDataApplier(
 			aggregator.NewDefaultVoteAggregator(
 				app.Logger(),
-				aggregatorFn,
+				priceAggregatorFn,
+				sanctionListAggregatorFn,
 				// we need a separate price strategy here, so that we can optimistically apply the latest prices
 				// and extend our vote based on these prices
 				currencypair.NewDeltaCurrencyPairStrategy(app.OracleKeeper),

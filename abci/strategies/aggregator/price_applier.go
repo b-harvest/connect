@@ -19,12 +19,12 @@ import (
 // derived from the latest votes to state.
 //
 //go:generate mockery --name PriceApplier --filename mock_price_applier.go
-type PriceApplier interface {
+type DataApplier interface {
 	// ApplyPricesFromVoteExtensions derives the aggregate prices per asset in accordance with the given
 	// vote extensions + VoteAggregator. If a price exists for an asset, it is written to state. The
 	// prices aggregated from vote-extensions are returned if no errors are encountered in execution,
 	// otherwise an error is returned + nil prices.
-	ApplyPricesFromVoteExtensions(ctx sdk.Context, req *cometabci.RequestFinalizeBlock) (map[connecttypes.CurrencyPair]*big.Int, error)
+	ApplyDataFromVoteExtensions(ctx sdk.Context, req *cometabci.RequestFinalizeBlock) (map[connecttypes.CurrencyPair]*big.Int, error)
 
 	// GetPriceForValidator gets the prices reported by a given validator. This method depends
 	// on the prices from the latest set of aggregated votes.
@@ -32,7 +32,7 @@ type PriceApplier interface {
 }
 
 // oraclePriceApplier is an implementation of PriceApplier that applies prices to the oracle module.
-type oraclePriceApplier struct {
+type oracleDataApplier struct {
 	// va is a VoteAggregator that is used to aggregate votes into prices.
 	va VoteAggregator
 
@@ -48,14 +48,14 @@ type oraclePriceApplier struct {
 }
 
 // NewOraclePriceApplier returns a new oraclePriceApplier.
-func NewOraclePriceApplier(
+func NewOracleDataApplier(
 	va VoteAggregator,
 	ok connectabcitypes.OracleKeeper,
 	voteExtensionCodec codec.VoteExtensionCodec,
 	extendedCommitCodec codec.ExtendedCommitCodec,
 	logger log.Logger,
-) PriceApplier {
-	return &oraclePriceApplier{
+) DataApplier {
+	return &oracleDataApplier{
 		va:                  va,
 		ok:                  ok,
 		logger:              logger,
@@ -64,7 +64,7 @@ func NewOraclePriceApplier(
 	}
 }
 
-func (opa *oraclePriceApplier) ApplyPricesFromVoteExtensions(ctx sdk.Context, req *cometabci.RequestFinalizeBlock) (map[connecttypes.CurrencyPair]*big.Int, error) {
+func (opa *oracleDataApplier) ApplyDataFromVoteExtensions(ctx sdk.Context, req *cometabci.RequestFinalizeBlock) (map[connecttypes.CurrencyPair]*big.Int, error) {
 	// If vote extensions have been enabled, the extended commit info - which
 	// contains the vote extensions - must be included in the request.
 	votes, err := GetOracleVotes(req.Txs, opa.voteExtensionCodec, opa.extendedCommitCodec)

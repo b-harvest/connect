@@ -6,6 +6,7 @@ import (
 
 	"cosmossdk.io/log"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/skip-mev/connect/v2/x/oracle/types"
 
 	"github.com/skip-mev/connect/v2/abci/strategies/codec"
 	"github.com/skip-mev/connect/v2/abci/strategies/currencypair"
@@ -82,7 +83,7 @@ type VoteAggregator interface {
 	// price aggregator but can be replaced by the application.
 	//
 	// Notice: This method overwrites the VoteAggregator's local view of prices.
-	AggregateOracleVotes(ctx sdk.Context, votes []Vote) (map[connecttypes.CurrencyPair]*big.Int, error)
+	AggregateOracleVotes(ctx sdk.Context, votes []Vote) (map[connecttypes.CurrencyPair]*big.Int, []types.SanctionItem, error)
 
 	// GetPriceForValidator gets the prices reported by a given validator. This method depends
 	// on the prices from the latest set of aggregated votes.
@@ -91,13 +92,17 @@ type VoteAggregator interface {
 
 func NewDefaultVoteAggregator(
 	logger log.Logger,
-	aggregateFn aggregator.AggregateFnFromContext[string, map[connecttypes.CurrencyPair]*big.Int],
+	priceAggregateFn aggregator.AggregateFnFromContext[string, map[connecttypes.CurrencyPair]*big.Int],
+	sanctionListAggregateFn aggregator.AggregateFnFromContext[string, []types.SanctionItem],
 	strategy currencypair.CurrencyPairStrategy,
 ) VoteAggregator {
 	return &DefaultVoteAggregator{
 		logger: logger,
 		priceAggregator: aggregator.NewDataAggregator(
-			aggregator.WithAggregateFnFromContext(aggregateFn),
+			aggregator.WithAggregateFnFromContext(priceAggregateFn),
+		),
+		sanctionListAggregator: aggregator.NewDataAggregator(
+			aggregator.WithAggregateFnFromContext(sanctionListAggregateFn),
 		),
 		currencyPairStrategy: strategy,
 	}
@@ -107,13 +112,15 @@ type DefaultVoteAggregator struct {
 	// validator address -> currency-pair -> price
 	priceAggregator *aggregator.DataAggregator[string, map[connecttypes.CurrencyPair]*big.Int]
 
+	sanctionListAggregator *aggregator.DataAggregator[string, []types.SanctionItem]
+
 	// decoding prices / currency-pair ids
 	currencyPairStrategy currencypair.CurrencyPairStrategy
 
 	logger log.Logger
 }
 
-func (dva *DefaultVoteAggregator) AggregateOracleVotes(ctx sdk.Context, votes []Vote) (map[connecttypes.CurrencyPair]*big.Int, error) {
+func (dva *DefaultVoteAggregator) AggregateOracleVotes(ctx sdk.Context, votes []Vote) (map[connecttypes.CurrencyPair]*big.Int, []types.SanctionItem, error) {
 	// Reset the price aggregator and set the aggregationFn to use the latest application-state.
 	dva.priceAggregator.ResetProviderData()
 
@@ -129,7 +136,7 @@ func (dva *DefaultVoteAggregator) AggregateOracleVotes(ctx sdk.Context, votes []
 				"err", err,
 			)
 
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
@@ -137,12 +144,15 @@ func (dva *DefaultVoteAggregator) AggregateOracleVotes(ctx sdk.Context, votes []
 	dva.priceAggregator.AggregateDataFromContext(ctx)
 	prices := dva.priceAggregator.GetAggregatedData()
 
+	dva.sanctionListAggregator.AggregateDataFromContext(ctx)
+	sanctionList := dva.sanctionListAggregator.GetAggregatedData()
+
 	dva.logger.Debug(
 		"aggregated oracle data",
 		"num_prices", len(prices),
 	)
 
-	return prices, nil
+	return prices, sanctionList, nil
 }
 
 // addVoteToAggregator consolidates the oracle data from a single validator
@@ -201,6 +211,13 @@ func (dva *DefaultVoteAggregator) addVoteToAggregator(ctx sdk.Context, address s
 	)
 
 	dva.priceAggregator.SetProviderData(address, prices)
+
+	sanctionList := make([]types.SanctionItem, 0, len(oracleData.SanctionList))
+	for _, item := range oracleData.SanctionList {
+		sanctionList = append(sanctionList, item)
+	}
+	// Add contract events to the contract event aggregator.
+	dva.sanctionListAggregator.SetProviderData(address, sanctionList)
 
 	return nil
 }

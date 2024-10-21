@@ -36,14 +36,15 @@ type PreBlockHandler struct { //golint:ignore
 	keeper connectabcitypes.OracleKeeper
 
 	// pa is the price applier that is used to decode vote-extensions, aggregate price reports, and write prices to state.
-	pa abciaggregator.PriceApplier
+	da abciaggregator.DataApplier
 }
 
 // NewOraclePreBlockHandler returns a new PreBlockHandler. The handler
 // is responsible for writing oracle data included in vote extensions to state.
 func NewOraclePreBlockHandler(
 	logger log.Logger,
-	aggregateFn aggregator.AggregateFnFromContext[string, map[connecttypes.CurrencyPair]*big.Int],
+	priceAggregateFn aggregator.AggregateFnFromContext[string, map[connecttypes.CurrencyPair]*big.Int],
+	sanctionListAggregateFn aggregator.AggregateFnFromContext[string, uint64],
 	oracleKeeper connectabcitypes.OracleKeeper,
 	metrics servicemetrics.Metrics,
 	strategy currencypair.CurrencyPairStrategy,
@@ -52,10 +53,11 @@ func NewOraclePreBlockHandler(
 ) *PreBlockHandler {
 	va := abciaggregator.NewDefaultVoteAggregator(
 		logger,
-		aggregateFn,
+		priceAggregateFn,
+		sanctionListAggregateFn,
 		strategy,
 	)
-	pa := abciaggregator.NewOraclePriceApplier(
+	da := abciaggregator.NewOracleDataApplier(
 		va,
 		oracleKeeper,
 		veCodec,
@@ -67,7 +69,7 @@ func NewOraclePreBlockHandler(
 		logger:  logger,
 		keeper:  oracleKeeper,
 		metrics: metrics,
-		pa:      pa,
+		da:      da,
 	}
 }
 

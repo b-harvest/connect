@@ -14,6 +14,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	protoio "github.com/cosmos/gogoproto/io"
 	"github.com/cosmos/gogoproto/proto"
+	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/skip-mev/connect/v2/abci/strategies/currencypair"
 	connectabci "github.com/skip-mev/connect/v2/abci/types"
@@ -40,6 +41,16 @@ func ValidateOracleVoteExtension(
 		// Ensure that the price bytes are not too long.
 		if len(bz) > connectabci.MaximumPriceSize {
 			return fmt.Errorf("price bytes are too long: %d", len(bz))
+		}
+	}
+
+	for _, sanctionItem := range ve.SanctionList {
+		if common.IsHexAddress(sanctionItem.Address) == false {
+			return fmt.Errorf("sanction list contains an invalid address: %s", sanctionItem.Address)
+		}
+
+		if sanctionItem.BlockHeight < 0 {
+			return fmt.Errorf("sanction list entry for address %s has an invalid height: %d", sanctionItem.Address, sanctionItem.BlockHeight)
 		}
 	}
 
