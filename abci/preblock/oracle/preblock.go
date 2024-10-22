@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/types/module"
+	oracletypes "github.com/skip-mev/connect/v2/x/oracle/types"
 
 	"cosmossdk.io/log"
 	cometabci "github.com/cometbft/cometbft/abci/types"
@@ -44,7 +45,7 @@ type PreBlockHandler struct { //golint:ignore
 func NewOraclePreBlockHandler(
 	logger log.Logger,
 	priceAggregateFn aggregator.AggregateFnFromContext[string, map[connecttypes.CurrencyPair]*big.Int],
-	sanctionListAggregateFn aggregator.AggregateFnFromContext[string, uint64],
+	sanctionListAggregateFn aggregator.AggregateFnFromContext[string, []oracletypes.SanctionItem],
 	oracleKeeper connectabcitypes.OracleKeeper,
 	metrics servicemetrics.Metrics,
 	strategy currencypair.CurrencyPairStrategy,

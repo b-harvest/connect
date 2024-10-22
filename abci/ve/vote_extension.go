@@ -43,7 +43,7 @@ type VoteExtensionHandler struct {
 	voteExtensionCodec compression.VoteExtensionCodec
 
 	// PriceApplier is the price applier that is used to decode vote-extensions, aggregate price reports, and write prices to state.
-	priceApplier aggregator.PriceApplier
+	dataApplier aggregator.DataApplier
 
 	// metrics is the service metrics interface that the vote-extension handler will use to report metrics.
 	metrics servicemetrics.Metrics
@@ -56,8 +56,7 @@ func NewVoteExtensionHandler(
 	timeout time.Duration,
 	strategy currencypair.CurrencyPairStrategy,
 	codec compression.VoteExtensionCodec,
-	priceApplier aggregator.PriceApplier,
-	sanctionListApplier aggregator.SanctionListApplier,
+	dataApplier aggregator.DataApplier,
 	metrics servicemetrics.Metrics,
 ) *VoteExtensionHandler {
 	return &VoteExtensionHandler{
@@ -67,8 +66,7 @@ func NewVoteExtensionHandler(
 		currencyPairStrategy: strategy,
 		voteExtensionCodec:   codec,
 		metrics:              metrics,
-		priceApplier:         priceApplier,
-		sanctionListApplier:  sanctionListApplier,
+		dataApplier:          dataApplier,
 	}
 }
 

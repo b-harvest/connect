@@ -7,6 +7,7 @@ import (
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	oracletypes "github.com/skip-mev/connect/v2/x/oracle/types"
 
 	"github.com/skip-mev/connect/v2/aggregator"
 	connecttypes "github.com/skip-mev/connect/v2/pkg/types"
@@ -41,6 +42,88 @@ func MedianFromContext(
 ) aggregator.AggregateFnFromContext[string, map[connecttypes.CurrencyPair]*big.Int] {
 	return func(ctx sdk.Context) aggregator.AggregateFn[string, map[connecttypes.CurrencyPair]*big.Int] {
 		return Median(ctx, logger, validatorStore, threshold)
+	}
+}
+
+func WeightedThresholdFromContext(
+	logger log.Logger,
+	validatorStore ValidatorStore,
+	threshold math.LegacyDec,
+) aggregator.AggregateFnFromContext[string, []oracletypes.SanctionItem] {
+	return func(ctx sdk.Context) aggregator.AggregateFn[string, []oracletypes.SanctionItem] {
+		return WeightedThreshold(ctx, logger, validatorStore, threshold)
+	}
+}
+
+func WeightedThreshold(
+	ctx sdk.Context,
+	logger log.Logger,
+	validatorStore ValidatorStore,
+	threshold math.LegacyDec,
+) aggregator.AggregateFn[string, []oracletypes.SanctionItem] {
+	return func(providers aggregator.AggregatedProviderData[string, []oracletypes.SanctionItem]) []oracletypes.SanctionItem {
+
+		sanctionList := make(map[oracletypes.SanctionItem]uint64)
+		// Iterate through all providers and store the sanction list for each validator.
+		for valAddress, validatorSanctions := range providers {
+			// Retrieve the validator from the validator store and get its vote weight.
+			address, err := sdk.ConsAddressFromBech32(valAddress)
+			if err != nil {
+				logger.Error(
+					"failed to parse validator address; skipping validator sanctions",
+					"validator_address", valAddress,
+					"err", err,
+				)
+
+				continue
+			}
+
+			validator, err := validatorStore.ValidatorByConsAddr(ctx, address)
+			if err != nil {
+				logger.Error(
+					"failed to retrieve validator from store; skipping validator sanctions",
+					"validator_address", valAddress,
+					"err", err,
+				)
+
+				continue
+			}
+			voteWeight := validator.GetBondedTokens()
+
+			// Iterate through all sanctions and store the sanction list for each validator.
+			for _, sanction := range validatorSanctions {
+				sanctionList[sanction] += voteWeight.Uint64()
+			}
+		}
+
+		totalBondedTokens, err := validatorStore.TotalBondedTokens(ctx)
+		if err != nil {
+			// This should never error.
+			panic(err)
+		}
+
+		sanctionItems := make([]oracletypes.SanctionItem, 0)
+		for sanction, weight := range sanctionList {
+			if percentSubmitted := math.LegacyNewDecFromInt(math.NewIntFromUint64(weight)).Quo(math.LegacyNewDecFromInt(totalBondedTokens)); percentSubmitted.GTE(threshold) {
+				sanctionItems = append(sanctionItems, sanction)
+				logger.Debug(
+					"computed stake-weighted median price for currency pair",
+					"sanction", sanction.String(),
+					"percent_submitted", percentSubmitted.String(),
+					"threshold", threshold.String(),
+					"num_validators", weight,
+				)
+			} else {
+				logger.Debug(
+					"not enough voting power to compute stake-weighted median price price for currency pair",
+					"sanction", sanction.String(),
+					"threshold", threshold.String(),
+					"percent_submitted", percentSubmitted.String(),
+					"num_validators", weight,
+				)
+			}
+		}
+		return sanctionItems
 	}
 }
 

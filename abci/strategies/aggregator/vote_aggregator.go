@@ -214,7 +214,7 @@ func (dva *DefaultVoteAggregator) addVoteToAggregator(ctx sdk.Context, address s
 
 	sanctionList := make([]types.SanctionItem, 0, len(oracleData.SanctionList))
 	for _, item := range oracleData.SanctionList {
-		sanctionList = append(sanctionList, item)
+		sanctionList = append(sanctionList, types.SanctionItem(item))
 	}
 	// Add contract events to the contract event aggregator.
 	dva.sanctionListAggregator.SetProviderData(address, sanctionList)

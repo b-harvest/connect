@@ -331,7 +331,13 @@ func NewSimApp(
 
 	// Create the aggregation function that will be used to aggregate oracle data
 	// from each validator.
-	aggregatorFn := voteweighted.MedianFromContext(
+	priceAggregatorFn := voteweighted.MedianFromContext(
+		app.Logger(),
+		app.StakingKeeper,
+		voteweighted.DefaultPowerThreshold,
+	)
+
+	sanctionListAggregatorFn := voteweighted.WeightedThresholdFromContext(
 		app.Logger(),
 		app.StakingKeeper,
 		voteweighted.DefaultPowerThreshold,
@@ -341,7 +347,8 @@ func NewSimApp(
 	// to the state before any transactions are executed (in finalize block).
 	oraclePreBlockHandler := oraclepreblock.NewOraclePreBlockHandler(
 		app.Logger(),
-		aggregatorFn,
+		priceAggregatorFn,
+		sanctionListAggregatorFn,
 		app.OracleKeeper,
 		oracleMetrics,
 		currencypair.NewDeltaCurrencyPairStrategy(app.OracleKeeper),

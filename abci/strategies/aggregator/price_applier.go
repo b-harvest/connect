@@ -7,6 +7,7 @@ import (
 	"cosmossdk.io/math"
 	cometabci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/skip-mev/connect/v2/abci/ve/types"
 
 	"github.com/skip-mev/connect/v2/abci/strategies/codec"
 	connectabcitypes "github.com/skip-mev/connect/v2/abci/types"
@@ -24,7 +25,7 @@ type DataApplier interface {
 	// vote extensions + VoteAggregator. If a price exists for an asset, it is written to state. The
 	// prices aggregated from vote-extensions are returned if no errors are encountered in execution,
 	// otherwise an error is returned + nil prices.
-	ApplyDataFromVoteExtensions(ctx sdk.Context, req *cometabci.RequestFinalizeBlock) (map[connecttypes.CurrencyPair]*big.Int, error)
+	ApplyDataFromVoteExtensions(ctx sdk.Context, req *cometabci.RequestFinalizeBlock) (map[connecttypes.CurrencyPair]*big.Int, []types.SanctionItem, error)
 
 	// GetPriceForValidator gets the prices reported by a given validator. This method depends
 	// on the prices from the latest set of aggregated votes.
@@ -64,7 +65,7 @@ func NewOracleDataApplier(
 	}
 }
 
-func (opa *oracleDataApplier) ApplyDataFromVoteExtensions(ctx sdk.Context, req *cometabci.RequestFinalizeBlock) (map[connecttypes.CurrencyPair]*big.Int, error) {
+func (opa *oracleDataApplier) ApplyDataFromVoteExtensions(ctx sdk.Context, req *cometabci.RequestFinalizeBlock) (map[connecttypes.CurrencyPair]*big.Int, []types.SanctionItem, error) {
 	// If vote extensions have been enabled, the extended commit info - which
 	// contains the vote extensions - must be included in the request.
 	votes, err := GetOracleVotes(req.Txs, opa.voteExtensionCodec, opa.extendedCommitCodec)
@@ -76,7 +77,7 @@ func (opa *oracleDataApplier) ApplyDataFromVoteExtensions(ctx sdk.Context, req *
 			"err", err,
 		)
 
-		return nil, err
+		return nil, nil, err
 	}
 
 	opa.logger.Debug(
@@ -86,7 +87,7 @@ func (opa *oracleDataApplier) ApplyDataFromVoteExtensions(ctx sdk.Context, req *
 	)
 
 	// Aggregate all oracle vote extensions into a single set of prices.
-	prices, err := opa.va.AggregateOracleVotes(ctx, votes)
+	prices, sanctionList, err := opa.va.AggregateOracleVotes(ctx, votes)
 	if err != nil {
 		opa.logger.Error(
 			"failed to aggregate oracle votes",
@@ -97,7 +98,7 @@ func (opa *oracleDataApplier) ApplyDataFromVoteExtensions(ctx sdk.Context, req *
 		err = PriceAggregationError{
 			Err: err,
 		}
-		return nil, err
+		return nil, nil, err
 	}
 
 	currencyPairs := opa.ok.GetAllCurrencyPairs(ctx)
@@ -137,7 +138,7 @@ func (opa *oracleDataApplier) ApplyDataFromVoteExtensions(ctx sdk.Context, req *
 				"err", err,
 			)
 
-			return nil, err
+			return nil, nil, err
 		}
 
 		opa.logger.Debug(
@@ -147,9 +148,19 @@ func (opa *oracleDataApplier) ApplyDataFromVoteExtensions(ctx sdk.Context, req *
 		)
 	}
 
-	return prices, nil
+	// Apply the sanction list to the oracle keeper.
+	if err := opa.ok.SetSanctionList(ctx, sacntionList); err != nil {
+		opa.logger.Error(
+			"failed to set sanction list",
+			"err", err,
+		)
+
+		return nil, nil, err
+	}
+
+	return prices, sanctionList, nil
 }
 
-func (opa *oraclePriceApplier) GetPricesForValidator(validator sdk.ConsAddress) map[connecttypes.CurrencyPair]*big.Int {
+func (opa *oracleDataApplier) GetPricesForValidator(validator sdk.ConsAddress) map[connecttypes.CurrencyPair]*big.Int {
 	return opa.va.GetPriceForValidator(validator)
 }
