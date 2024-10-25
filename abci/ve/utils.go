@@ -31,7 +31,9 @@ func ValidateOracleVoteExtension(
 		return fmt.Errorf("unable to get max price bytes size: %w", err)
 	}
 
-	if uint64(len(ve.Prices)) > maxNumCP {
+	//TODO: fix app wiring
+	//if uint64(len(ve.Prices)) > maxNumCP {
+	if uint64(len(ve.Prices)) > 63 {
 		return fmt.Errorf("number of oracle vote extension pairs of %d greater than maximum expected pairs of %d", uint64(len(ve.Prices)), maxNumCP)
 	}
 

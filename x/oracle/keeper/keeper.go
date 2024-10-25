@@ -67,6 +67,9 @@ type Keeper struct {
 	// numCPs is the number of CPs.
 	numCPs collections.Item[uint64]
 
+	// registered hooks
+	hooks types.OracleHooks
+
 	// module authority
 	authority sdk.AccAddress
 }

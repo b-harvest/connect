@@ -69,3 +69,11 @@ message GenesisState {
   // NextID is the next ID to be used for a CurrencyPair
   uint64 next_id = 2;
 }
+
+message SanctionItem {
+  // Address is the address of the validator
+  string address = 1;
+
+  // Height is the height at which the sanction was set
+  uint64 height = 2;
+}

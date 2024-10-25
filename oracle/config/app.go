@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	DefaultOracleEnabled  = false
+	DefaultOracleEnabled  = true
 	DefaultOracleAddress  = "localhost:8080"
 	DefaultClientTimeout  = 3 * time.Second
 	DefaultMetricsEnabled = false
